@@ -10,6 +10,7 @@
 
 
 
+
 % !TEX encoding = UTF-8 Unicode
 
 \input{commands} % Insert the commands.tex file which contains the majority of the structure behind the template
@@ -22,17 +23,17 @@
 %------------------------------%	TITLE PAGE
 %----------------------------------------------------------------------------------------
 
-\begingroup
-\thispagestyle{empty}
-\AddToShipoutPicture*{\put(6,5){\includegraphics[scale=1]{background}}} % Image background
-\centering
-\vspace*{9cm}
-\par\normalfont\fontsize{35}{35}\sffamily\selectfont
-\textrm{MAT2040 MathNoteBook}\par % Book title
-\vspace*{1cm}
-{\Huge Prof. Zhi-quan Luo}\par % Author name
-\endgroup
-
+%\begingroup
+%\thispagestyle{empty}
+%\AddToShipoutPicture*{\put(6,5){\includegraphics[scale=1]{background}}} % Image background
+%\centering
+%\vspace*{9cm}
+%\par\normalfont\fontsize{35}{35}\sffamily\selectfont
+%\textrm{MAT2040 MathNoteBook}\par % Book title
+%\vspace*{1cm}
+%{\Huge Prof. Zhi-quan Luo}\par % Author name
+%\endgroup
+\includepdf[pages={1}]{book_cover/cover/FrontCover}
 %----------------------------------------------------------------------------------------
 %	COPYRIGHT PAGE
 %----------------------------------------------------------------------------------------
@@ -143,7 +144,7 @@
 \cleardoublepage
 \setlength{\columnsep}{0.75cm}
 \addcontentsline{toc}{chapter}{\textcolor{ocre}{Index}}
-
+\includepdf[pages={1}]{book_cover/cover/BackCover}
 %----------------------------------------------------------------------------------------
 
 \end{document}
