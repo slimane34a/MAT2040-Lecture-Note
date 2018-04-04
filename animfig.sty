@@ -1,0 +1,427 @@
+%%%
+%%% animfig 0.90
+%%% 2004-07-09
+%%% Kevin Pulo, kev@pulo.com.au
+%%%
+%%% Animated figures for pdfTeX
+%%%
+%%% Based on work by Jan Holecek and Petr Sojka
+%%% http://www.fi.muni.cz/~xholecek/animations/
+%%%
+%%% THIS IS A PRERELEASE VERSION.
+%%%
+
+
+\ifx\undefined\animfig\def\animfig{}\else\endinput\fi
+
+
+\immediate\write16{This is animfig.sty, Version 0.90 <9-Jul-2004>}
+
+
+%% Taken from generic/misc/psfig.sty
+\let\LaTeXAtSign=\@
+\let\@=\relax
+\edef\psfigRestoreAt{\catcode`\@=\number\catcode`@\relax}
+%\edef\psfigRestoreAt{\catcode`@=\number\catcode`@\relax}
+\catcode`\@=11\relax
+
+
+%%% I stole this from generic/misc/path.sty to be able to hide
+%%% identifier names.
+%\newcount \ATcode
+%\ATcode = \catcode `\@
+%\catcode `\@ = 11
+
+
+% an image for further use
+\def\ximage#1#2#3{%
+    \immediate\pdfximage page #2 {#3}%
+    \expandafter\edef\csname pdf:#1\endcsname{\the\pdflastximage}%
+}
+
+% a general object for further use
+\def\insertobj#1#2{%
+    \immediate\pdfobj{#2}%
+    \expandafter\edef\csname pdf:#1\endcsname{\the\pdflastobj}%
+}
+
+% expands to an indirect ref. for a key
+\def\oref#1{%
+    \csname pdf:#1\endcsname\space 0 R%
+}
+
+% actually places an image
+\def\image#1{%
+    \expandafter\pdfrefximage\csname pdf:#1\endcsname
+}
+
+\def\pad#1{\ifnum1#1<10000000 \pad{0#1}\else #1\fi}%
+
+% set up the document
+%\pdfcatalog{ /OpenAction [ 0 /Fit ] }
+\pdfcatalog{
+    /OpenAction <<
+        /S /JavaScript 
+        /JS (
+            this.dirty = false;
+            this.zoomType = zoomtype.fitP;
+        )
+    >>
+}
+
+% the Helvetica basefont object
+\insertobj{Helv}{
+    << 
+        /Type /Font  
+        /Subtype /Type1
+        /Name /Helv  
+        /BaseFont /Helvetica
+    >>
+}
+
+% the AcroForm dictionary
+\insertobj{AcroForm}{
+    << 
+        /DR << /Font << /Helv \oref{Helv} >> >>
+        /DA (/Helv 7 Tf 0 g )
+        /NeedAppearances true
+    >>
+}
+
+% add a reference to the Catalog
+\pdfcatalog{ /AcroForm \oref{AcroForm} }
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\def\framenames{}
+
+\def\rememberframename#1{%
+	\edef\framenames{\framenames (#1) \oref{#1} }
+	\ifx\firstframename\undefined
+		\edef\firstframename{#1}
+	\fi
+	\edef\lastframename{#1}
+}
+
+\def\readframe#1#2#3{%
+	\ximage{#2}{#3}{#1}%
+	\rememberframename{#2}%
+}
+
+\def\framepad{%
+	\ifnum\framenum<10
+		0%
+	\fi%
+}
+
+\def\readnextframes#1#2#3{%
+	%\readframe{#1}{#2fr\framepad\the\framenum}{\the\pagenum}%
+	\readframe{#1}{#2fr\pad{\the\framenum}}{\the\pagenum}%
+	\advance\framenum by 1
+	\advance\pagenum by 1
+	\ifnum\pagenum>#3
+	\else
+		\readnextframes{#1}{#2}{#3}
+	\fi
+}
+
+\newcount\framenum
+\newcount\pagenum
+\def\readallframes#1#2#3{%
+	% all animation frames are inserted
+	\framenum=0
+	\pagenum=1
+	\readnextframes{#1}{#2}{#3}
+}
+
+\def\outputframenames{%
+	% defining names for frames
+	\insertobj{AppearanceNames}{
+    << /Names
+        [ \framenames ]
+        /Limits [ (\firstframename) (\lastframename) ]
+    >>
+	}
+
+	% edit the Names dictionary
+	\pdfnames{ /AP \oref{AppearanceNames} }
+}
+
+
+\def\insertactions#1#2#3{%
+	% play the animation
+	\insertobj{#1actionPlay}{
+    << 
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            function #1Next() {
+                #1g.delay = true;
+                if (#1cntr >= #3) {
+                    #1cntr = #3-1;
+                    try { app.clearInterval(#1arun); } catch(except) {}
+					#1mode = "pause";
+					this.getField("ButtonPlayPause#1").buttonSetCaption("Play");
+                } else {
+                    #1cntr++;
+                }
+                #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+                #1g.delay=false;
+				this.dirty = false;
+            }
+            try { app.clearInterval(#1arun); } catch(except) {}
+			#1mode = "play";
+			this.getField("ButtonPlayPause#1").buttonSetCaption("Pause");
+            if ( typeof #1cntr == "undefined" ) { var #1cntr = 0 }
+			if (#1cntr >= #3-1) { #1cntr = 0; }
+            var #1g = this.getField("#1animation");
+            var #1arun =  app.setInterval("#1Next()", #2);
+			this.dirty = false;
+        )
+    >>
+	}
+
+	% pause the animation
+	\insertobj{#1actionPause}{
+    << 
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            try { app.clearInterval(#1arun); } catch(except) {}
+			#1mode = "pause";
+			this.getField("ButtonPlayPause#1").buttonSetCaption("Play");
+			this.dirty = false;
+        )
+    >>
+	}
+
+	\insertobj{#1actionPlayPause}{
+    << 
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            function #1Next() {
+                #1g.delay = true;
+                if (#1cntr >= #3) {
+                    #1cntr = #3-1;
+                    try { app.clearInterval(#1arun); } catch(except) {}
+					#1mode = "pause";
+					this.getField("ButtonPlayPause#1").buttonSetCaption("Play");
+                } else {
+                    #1cntr++;
+                }
+                #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+                #1g.delay=false;
+				this.dirty = false;
+            }
+			try { app.clearInterval(#1arun); } catch(except) {}
+            if ( typeof #1mode == "undefined" ) { var #1mode = "pause"; }
+			if (#1mode == "play") {
+				#1mode = "pause";
+				this.getField("ButtonPlayPause#1").buttonSetCaption("Play");
+			} else {
+				#1mode = "play";
+				this.getField("ButtonPlayPause#1").buttonSetCaption("Pause");
+				if ( typeof #1cntr == "undefined" ) { var #1cntr = 0 }
+				if (#1cntr >= #3-1) {
+					#1cntr = 0;
+					#1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+				}
+				var #1g = this.getField("#1animation");
+				var #1arun =  app.setInterval("#1Next()", #2);
+			}
+			this.dirty = false;
+        )
+    >>
+	}
+
+	% show the previous frame
+	\insertobj{#1actionPrev}{
+    << 
+        /S /JavaScript
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            try { app.clearInterval(#1arun); } catch(except) {}
+            var #1g = this.getField("#1animation");
+            if (typeof #1cntr == "undefined") { var #1cntr = 0 }
+            if ( 0 < #1cntr ) { #1cntr -- }
+            #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+			this.dirty = false;
+        )
+    >>
+	}
+
+	% show the next frame
+	\insertobj{#1actionNext}{
+    << 
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            try { app.clearInterval(#1arun); } catch(except) {}
+            var #1g = this.getField("#1animation");
+            if (typeof #1cntr == "undefined") { var #1cntr = 0 }
+            if ( #1cntr < ((#3)-1)) { #1cntr ++ }
+            #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+			this.dirty = false;
+        )
+    >>
+	}
+
+	% reset the animation
+	\insertobj{#1actionFirst}{
+    <<
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            try { app.clearInterval(#1arun); } catch(except) {}
+            var #1g = this.getField("#1animation");
+            if (typeof #1cntr == "undefined") { var #1cntr = 0 }
+            #1cntr = 0;
+            #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+			this.dirty = false;
+        )
+    >>
+	}
+
+	% reset the animation
+	\insertobj{#1actionLast}{
+    <<
+        /S /JavaScript 
+        /JS (
+			function pad0(string, newlength) {                                                                  
+				var pad = "";                                                                                     
+				var len = newlength-String(string).length;                                                        
+				var i;                                                                                            
+				for (i = 0; i<len; i++) {                                                                         
+					pad += "0";                                                                                     
+				}                                                                                                 
+				return pad+string;                                                                                
+			}                                                                                                   
+            try { app.clearInterval(#1arun); } catch(except) {}
+            var #1g = this.getField("#1animation");
+            if (typeof #1cntr == "undefined") { var #1cntr = 0 }
+            #1cntr = #3-1;
+            #1g.buttonSetIcon (this.getIcon("#1fr" + pad0(#1cntr, 7)));
+			this.dirty = false;
+        )
+    >>
+	}
+}
+
+\def\defineanimationwidget#1{%
+	% an animation widget
+	\centerline{\hbox{%
+		\pdfstartlink user{
+			/Subtype /Widget
+			/FT /Btn
+			/Ff 65536
+			/T (#1animation)
+			/BS << /W 0 >>
+			/MK << /TP 1 >> }%
+		\image{#1fr\pad{0}}%
+		\pdfendlink}%
+	}
+}
+
+% control button for a given action
+\def\controlbutton#1#2#3#4{%
+    \hbox to #4{%
+        \pdfstartlink user{
+            /Subtype /Widget
+            /FT /Btn
+            /Ff 65536
+            /T (Button#2#1)
+            /BS << /W 1 /S /B >>
+            /MK << /BG [0.6] /CA (#3) >>
+            /H /P
+            /A \oref{#1action#2} }%
+        \hfil\strut
+        \pdfendlink
+    }%
+}
+
+\def\insertcontrolbuttons#1{%
+	% control buttons
+	\centerline{%
+				\controlbutton{#1}{First}{|<}{0.5cm}\hskip0.1cm%
+				\controlbutton{#1}{Prev}{<}{0.5cm}\hskip0.1cm%
+				%\controlbutton{#1}{Play}{Play}{1cm}\hskip0.1cm%
+				%\controlbutton{#1}{Pause}{Pause}{1cm}\hskip0.1cm%
+				\controlbutton{#1}{PlayPause}{Play}{1cm}\hskip0.1cm%
+				\controlbutton{#1}{Next}{>}{0.5cm}\hskip0.1cm%
+				\controlbutton{#1}{Last}{>|}{0.5cm}}%
+}
+
+\newcount\animnum\animnum=0
+\def\includeanimation#1#2#3{%
+	% 1 = filename for frames, 1 per page, without .pdf on the end.
+	% 2 = milliseconds between frames
+	% 3 = number of frames/pages in pdf file
+	\readallframes{#1}{a\the\animnum}{#3}%
+	\insertactions{a\the\animnum}{#2}{#3}%
+	\vbox{%
+		\defineanimationwidget{a\the\animnum}%
+		\insertcontrolbuttons{a\the\animnum}%
+	}%
+	\advance\animnum by 1%
+}
+
+
+%%% Restore hidden character.
+\let\@=\LaTeXAtSign
+
+%%% Restore hidden character.
+%\catcode `\@ = \ATcode
+
+\endinput
+
